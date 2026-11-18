@@ -33,6 +33,6 @@ Para o próximo feirão, basta trocar as datas.
 
 ## Atalhos
 - `?tela=desafio` abre direto na tela de regras · `?demo=venda` testa a comemoração.
-- Fotos: `photos/` (mesmo padrão de nomes do ranking MCMV).
+- Fotos: `photos/Nome_Sobrenome.jpg`. O nome do arquivo é o nome exibido; o corretor do Amparo é reconhecido pelo primeiro nome (lista `ROSTER` no `index.html`, ex.: "Pedro Kauan" → Kauan Pereira). Corretor novo: adicione a foto e uma linha na lista.
 
 Teste: `node tests/ranking.test.js`

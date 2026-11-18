@@ -240,11 +240,21 @@ footer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:c
   const safe = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const n = (v) => Number(v) || 0;
-  const pics = { kauan: '/photos/Kauan-Pereira.jpg', jhonattan: '/photos/Jhonattan-Paes.jpg', tiago: '/photos/Tiago-Silva.jpg', luiz: '/photos/Luiz-Fernando.jpg', yang: '/photos/Yang-Souza.jpg' };
-  const photoKey = (name) => { const v = norm(name); return Object.keys(pics).find((k) => v.includes(k)) || (v.includes('luis') ? 'luiz' : null); };
-  const short = (name) => { const p = String(name || '').trim().split(/\s+/); return p.length > 1 ? p[0] + ' ' + p[p.length - 1] : p[0] || ''; };
+  // Fotos dos corretores: o nome do arquivo (Nome_Sobrenome.jpg) é o nome exibido na tela.
+  // O corretor do Amparo é reconhecido por um dos nomes abaixo (ex.: "Pedro Kauan" → Kauan Pereira).
+  const ROSTER = [
+    { match: ['cesar'], file: 'Cesar_Augusto' },
+    { match: ['jhonattan'], file: 'Jhonattan_Paes' },
+    { match: ['kauan'], file: 'Kauan_Pereira' },
+    { match: ['luiz', 'luis'], file: 'Luiz_Fernando' },
+    { match: ['rodrigo'], file: 'Rodrigo_Kopsch' },
+    { match: ['tiago'], file: 'Tiago_Silva' },
+    { match: ['yang'], file: 'Yang_Souza' },
+  ];
+  const who = (name) => { const t = norm(name).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/); const r = ROSTER.find((x) => x.match.some((m) => t.includes(m))); return r ? { name: r.file.replace(/_/g, ' '), src: '/photos/' + r.file + '.jpg' } : null; };
+  const short = (name) => { const r = who(name); if (r) return r.name; const p = String(name || '').trim().split(/\s+/); return p.length > 1 ? p[0] + ' ' + p[p.length - 1] : p[0] || ''; };
   const initials = (name) => short(name).split(' ').map((s) => s[0] || '').join('').toUpperCase();
-  const photo = (name) => { const k = photoKey(name); return k ? '<img src="' + pics[k] + '" alt="" onerror="this.replaceWith(document.createTextNode(\'' + initials(name) + '\'))">' : safe(initials(name)); };
+  const photo = (name) => { const r = who(name); return r ? '<img src="' + r.src + '" alt="" onerror="this.replaceWith(document.createTextNode(\'' + initials(name) + '\'))">' : safe(initials(name)); };
   const LABEL = { vendas: 'Vendas', propostas: 'Propostas', pastas: 'Pastas', agendamentos: 'Agend.' };
   const VERB = { vendas: 'fechou uma <b>venda</b>', propostas: 'emplacou uma <b>proposta</b>', pastas: 'enviou uma <b>pasta</b>', agendamentos: 'agendou um <b>cliente para o feirão</b>' };
   const day = (d) => new Date(d + 'T00:00:00-03:00');
