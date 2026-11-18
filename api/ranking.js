@@ -4,8 +4,9 @@
  *
  * Variáveis (Vercel › Settings › Environment Variables):
  *   SUPABASE_URL, SUPABASE_ANON_KEY          (obrigatórias — mesmas do Amparo)
- *   FEIRAO_INICIO, FEIRAO_FIM                (período da campanha: vendas, propostas e pastas)  padrão 2026-11-18 → 2026-11-21
- *   FEIRAO_DIA_INICIO, FEIRAO_DIA_FIM        (dias do feirão: agendamentos contam pela data da visita) padrão 2026-11-20 → 2026-11-21
+ *   FEIRAO_INICIO, FEIRAO_FIM                (período único do placar, para TODAS as métricas, padrão 2026-11-18 → 2026-11-21:
+ *                                             conta data >= 18/11 00:00 e < 22/11 00:00, America/Sao_Paulo; o filtro é feito no backend)
+ *   FEIRAO_DIA_INICIO, FEIRAO_DIA_FIM        (só o visual: contagem regressiva e datas no topo da tela) padrão 2026-11-20 → 2026-11-21
  *   FEIRAO_PONTOS                            (venda,proposta,pasta,agendamento) padrão "10,5,3,2"
  *   FEIRAO_META_AGENDAMENTOS                 (meta da equipe de clientes agendados p/ o feirão) padrão 50
  */
@@ -69,8 +70,6 @@ async function handler(req, res) {
     const endpoint = new URL('/functions/v1/tv-ranking-feirao', baseUrl);
     endpoint.searchParams.set('start', cfg.start);
     endpoint.searchParams.set('end', cfg.end);
-    endpoint.searchParams.set('event_start', cfg.eventStart);
-    endpoint.searchParams.set('event_end', cfg.eventEnd);
     const response = await fetch(endpoint, {
       headers: { apikey: anonKey, Authorization: 'Bearer ' + anonKey, Accept: 'application/json' },
       signal: AbortSignal.timeout(TIMEOUT_MS),
