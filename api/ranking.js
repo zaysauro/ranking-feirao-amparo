@@ -6,6 +6,7 @@
  *   SUPABASE_URL, SUPABASE_ANON_KEY          (obrigatórias — mesmas do Amparo)
  *   FEIRAO_INICIO, FEIRAO_FIM                (período único do placar, para TODAS as métricas, padrão 2026-11-18 → 2026-11-21:
  *                                             conta data >= 18/11 00:00 e < 22/11 00:00, America/Sao_Paulo; o filtro é feito no backend)
+ *   FEIRAO_AGEND_INICIO, FEIRAO_AGEND_FIM    (período dos agendamentos, pela data do registro) padrão 2026-11-16 → 2026-11-21
  *   FEIRAO_DIA_INICIO, FEIRAO_DIA_FIM        (só o visual: contagem regressiva e datas no topo da tela) padrão 2026-11-20 → 2026-11-21
  *   FEIRAO_PONTOS                            (venda,proposta,pasta,agendamento) padrão "10,5,3,2"
  *   FEIRAO_META_AGENDAMENTOS                 (meta da equipe de clientes agendados p/ o feirão) padrão 50
@@ -24,6 +25,8 @@ function config() {
   return {
     start: day('FEIRAO_INICIO', '2026-11-18'),
     end: day('FEIRAO_FIM', '2026-11-21'),
+    agStart: day('FEIRAO_AGEND_INICIO', '2026-11-16'),
+    agEnd: day('FEIRAO_AGEND_FIM', '2026-11-21'),
     eventStart: day('FEIRAO_DIA_INICIO', '2026-11-20'),
     eventEnd: day('FEIRAO_DIA_FIM', '2026-11-21'),
     points: { vendas, propostas, pastas, agendamentos },
@@ -70,6 +73,8 @@ async function handler(req, res) {
     const endpoint = new URL('/functions/v1/tv-ranking-feirao', baseUrl);
     endpoint.searchParams.set('start', cfg.start);
     endpoint.searchParams.set('end', cfg.end);
+    endpoint.searchParams.set('ag_start', cfg.agStart);
+    endpoint.searchParams.set('ag_end', cfg.agEnd);
     const response = await fetch(endpoint, {
       headers: { apikey: anonKey, Authorization: 'Bearer ' + anonKey, Accept: 'application/json' },
       signal: AbortSignal.timeout(TIMEOUT_MS),

@@ -1,10 +1,14 @@
 // Regras de contagem do Desafio do Feirão — puras, sem banco, para testar as bordas.
-// Período único para TODAS as métricas: data >= início 00:00:00 e data < (fim + 1 dia) 00:00:00,
+// Cada período conta data >= início 00:00:00 e data < (fim + 1 dia) 00:00:00 (vendas, propostas e pastas: 18 a 21/11;
+// agendamentos: 16 a 21/11),
 // no fuso America/Sao_Paulo (UTC-03:00, sem horário de verão desde 2019).
 
 export const TZ_OFFSET = "-03:00";
 export const DEFAULT_START = "2026-11-18";
 export const DEFAULT_END = "2026-11-21"; // inclusivo: o sábado inteiro; o limite exclusivo é 22/11 00:00
+// Agendamentos têm período próprio: a semana do feirão, de segunda 16/11 00:00 até sábado 21/11 (exclusivo 22/11 00:00).
+export const DEFAULT_AG_START = "2026-11-16";
+export const DEFAULT_AG_END = "2026-11-21";
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 export function addDays(day, n) {
@@ -13,10 +17,10 @@ export function addDays(day, n) {
   return d.toISOString().slice(0, 10);
 }
 
-export function eventWindow(start, end) {
-  let s = DAY.test(start || "") ? start : DEFAULT_START;
-  let e = DAY.test(end || "") ? end : DEFAULT_END;
-  if (e < s) { s = DEFAULT_START; e = DEFAULT_END; }
+export function eventWindow(start, end, defStart = DEFAULT_START, defEnd = DEFAULT_END) {
+  let s = DAY.test(start || "") ? start : defStart;
+  let e = DAY.test(end || "") ? end : defEnd;
+  if (e < s) { s = defStart; e = defEnd; }
   if ((Date.parse(e) - Date.parse(s)) / 864e5 > 45) e = addDays(s, 45);
   return {
     start: s, end: e,
@@ -40,11 +44,13 @@ export const normalize = (v) => String(v || "").normalize("NFD").replace(/[̀-ͯ
  *  - vendas: 1 por lead (sold_at no período)
  *  - propostas: só ato pago, 1 por lead (created_at no período)
  *  - pastas: 1 por lead (submitted_at no período)
- *  - agendamentos: registro criado no período (created_at), sem cancelados/desmarcados/reagendados,
+ *  - agendamentos: registro criado no período DOS AGENDAMENTOS (agWindow; padrão segunda 16/11 a sábado 21/11),
+ *    pela data do registro (created_at), sem cancelados/desmarcados/reagendados,
  *    1 por (lead, corretor, horário da visita); sem lead, 1 por id
  * O ponto vai para o corretor responsável, e só corretores elegíveis (lista de perfis) pontuam.
  */
-export function tally({ profiles, sold, proposals, folders, visits, leadOwner = new Map(), window: w }) {
+export function tally({ profiles, sold, proposals, folders, visits, leadOwner = new Map(), window: w, agWindow }) {
+  const wa = agWindow || w;
   const nameOf = (p) => p.full_name || p.nome || "Corretor";
   const team = new Map(profiles.map((p) => [p.id, { name: nameOf(p), vendas: 0, propostas: 0, pastas: 0, agendamentos: 0 }]));
   const byName = new Map(profiles.map((p) => [normalize(nameOf(p)), p.id]));
@@ -64,7 +70,7 @@ export function tally({ profiles, sold, proposals, folders, visits, leadOwner = 
   }
   for (const f of folders) if (inWindow(f.submitted_at, w)) add(f.owner_id, "pastas", f.lead_id ? "lead:" + f.lead_id : "id:" + f.id, f.submitted_at);
   for (const v of visits) {
-    if (isCanceled(v.status) || !inWindow(v.created_at, w)) continue;
+    if (isCanceled(v.status) || !inWindow(v.created_at, wa)) continue;
     const owner = v.corretor_id || byName.get(normalize(v.corretor_name));
     const key = v.lead_id ? ["lead", v.lead_id, owner, v.start_at].join(":") : "id:" + v.id;
     add(owner, "agendamentos", key, v.created_at);

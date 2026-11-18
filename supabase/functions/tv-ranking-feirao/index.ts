@@ -1,8 +1,8 @@
 // tv-ranking-feirao — placar exclusivo do Desafio do Feirão (Amparo). Somente leitura.
-// Período único para todas as métricas: >= ?start 00:00 e < (?end + 1 dia) 00:00, America/Sao_Paulo.
-// Padrão: 18/11/2026 00:00 até 22/11/2026 00:00 (exclusivo). Regras em core.js.
+// Vendas, propostas e pastas: >= ?start 00:00 e < (?end + 1 dia) 00:00, America/Sao_Paulo (padrão 18/11 → 22/11 00:00).
+// Agendamentos: >= ?ag_start 00:00 e < (?ag_end + 1 dia) 00:00 (padrão segunda 16/11 → 22/11 00:00). Regras em core.js.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { eventWindow, tally } from "./core.js";
+import { eventWindow, tally, DEFAULT_AG_START, DEFAULT_AG_END } from "./core.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -29,14 +29,15 @@ async function allRows(table: string, columns: string, filter: (q: any) => any) 
 
 async function buildData(params: URLSearchParams) {
   const w = eventWindow(params.get("start") || "", params.get("end") || "");
-  const range = (col: string) => (q: any) => q.gte(col, w.startUtc).lt(col, w.endUtc);
+  const wa = eventWindow(params.get("ag_start") || "", params.get("ag_end") || "", DEFAULT_AG_START, DEFAULT_AG_END);
+  const range = (col: string, win = w) => (q: any) => q.gte(col, win.startUtc).lt(col, win.endUtc);
   const [profiles, sold, proposals, folders, visits] = await Promise.all([
     allRows("profiles", "id,full_name,nome", (q) => q.eq("company_id", COMPANY_ID).eq("active", true)
       .in("role", ["broker", "corretor", "agent"]).eq("exclude_from_rankings", false)),
     allRows("leads", "id,owner_id,responsavel_id,sold_at", (q) => range("sold_at")(q.eq("company_id", COMPANY_ID).is("deleted_at", null))),
     allRows("proposals", "id,lead_id,assigned_to,created_at,ato_pago", (q) => range("created_at")(q.eq("company_id", COMPANY_ID).eq("ato_pago", true))),
     allRows("lead_folders", "id,lead_id,owner_id,submitted_at", (q) => range("submitted_at")(q.eq("company_id", COMPANY_ID))),
-    allRows("calendar_events", "id,lead_id,corretor_id,corretor_name,start_at,created_at,status", (q) => range("created_at")(q.eq("organization_id", COMPANY_ID))),
+    allRows("calendar_events", "id,lead_id,corretor_id,corretor_name,start_at,created_at,status", (q) => range("created_at", wa)(q.eq("organization_id", COMPANY_ID))),
   ]);
   if (!profiles.length) throw new Error("Nenhum corretor ativo encontrado no Amparo");
   const leadIds = [...new Set(proposals.filter((x: any) => !x.assigned_to).map((x: any) => x.lead_id).filter(Boolean))];
@@ -45,9 +46,10 @@ async function buildData(params: URLSearchParams) {
     const { data } = await supabase.from("leads").select("id,owner_id,responsavel_id").in("id", leadIds.slice(i, i + 200));
     for (const l of data || []) leadOwner.set(l.id, l.owner_id || l.responsavel_id);
   }
-  const result = tally({ profiles, sold, proposals, folders, visits, leadOwner, window: w });
+  const result = tally({ profiles, sold, proposals, folders, visits, leadOwner, window: w, agWindow: wa });
   return {
-    campaign: { start: w.start, end: w.end, startUtc: w.startUtc, endUtcExclusive: w.endUtc },
+    campaign: { start: w.start, end: w.end, startUtc: w.startUtc, endUtcExclusive: w.endUtc,
+      agendamentos: { start: wa.start, end: wa.end, startUtc: wa.startUtc, endUtcExclusive: wa.endUtc } },
     ...result, updatedAt: new Date().toISOString(), complete: true, source: "Amparo CRM",
   };
 }

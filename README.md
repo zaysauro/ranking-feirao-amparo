@@ -10,7 +10,9 @@ Projeto novo e independente do `ranking-mcmv-tv` — mesma lógica: o corretor l
 - Edge Function `tv-ranking-feirao` (Supabase Amparo) — nova, só leitura; **não altera a `tv-ranking`**.
 
 ## Pontuação (padrão)
-**Placar exclusivo do Feirão:** todas as métricas contam só registros com data **>= 18/11/2026 00:00:00 e < 22/11/2026 00:00:00** (America/Sao_Paulo), filtrados no backend (Edge Function `tv-ranking-feirao`). Nada de antes de quarta 18/11 nem de depois de sábado 21/11 entra.
+**Placar exclusivo do Feirão**, filtrado no backend (Edge Function `tv-ranking-feirao`), no fuso America/Sao_Paulo:
+- **Vendas, propostas e pastas:** data **>= 18/11/2026 00:00:00 e < 22/11/2026 00:00:00** (quarta a sábado).
+- **Agendamentos:** data do registro **>= 16/11/2026 00:00:00 e < 22/11/2026 00:00:00** (segunda a sábado da semana do feirão).
 
 | Ação no Amparo | Pontos | Data que conta |
 |---|---|---|
@@ -21,14 +23,15 @@ Projeto novo e independente do `ranking-mcmv-tv` — mesma lógica: o corretor l
 
 O ponto vai para o corretor responsável e só corretores elegíveis (ativos e não excluídos dos rankings) pontuam. Desempate: vendas > propostas > pastas > agendamentos.
 
-Código da função: `supabase/functions/tv-ranking-feirao/` (regras em `core.js`). Testes de borda (terça e domingo fora, quarta a sábado dentro): `node tests/periodo.test.mjs`.
+Código da função: `supabase/functions/tv-ranking-feirao/` (regras em `core.js`). Testes de borda (vendas/propostas/pastas: terça e domingo fora, quarta a sábado dentro; agendamentos: domingo 15/11 e domingo 22/11 fora, segunda a sábado dentro): `node tests/periodo.test.mjs`.
 
 ## Variáveis (Vercel › Settings › Environment Variables)
 | Variável | Padrão |
 |---|---|
 | `SUPABASE_URL` | — (obrigatória) |
 | `SUPABASE_ANON_KEY` | — (obrigatória) |
-| `FEIRAO_INICIO` / `FEIRAO_FIM` (período do placar, fim inclusivo) | `2026-11-18` / `2026-11-21` |
+| `FEIRAO_INICIO` / `FEIRAO_FIM` (vendas, propostas e pastas; fim inclusivo) | `2026-11-18` / `2026-11-21` |
+| `FEIRAO_AGEND_INICIO` / `FEIRAO_AGEND_FIM` (agendamentos; fim inclusivo) | `2026-11-16` / `2026-11-21` |
 | `FEIRAO_DIA_INICIO` / `FEIRAO_DIA_FIM` (só a contagem regressiva no topo) | `2026-11-20` / `2026-11-21` |
 | `FEIRAO_PONTOS` | `10,5,3,2` (venda, proposta, pasta, agendamento) |
 | `FEIRAO_META_AGENDAMENTOS` | `50` |

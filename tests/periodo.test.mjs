@@ -1,6 +1,6 @@
 // Testes de borda do período do Feirão: node tests/periodo.test.mjs
 import assert from 'node:assert/strict';
-import { eventWindow, inWindow, tally } from '../supabase/functions/tv-ranking-feirao/core.js';
+import { eventWindow, inWindow, tally, DEFAULT_AG_START, DEFAULT_AG_END } from '../supabase/functions/tv-ranking-feirao/core.js';
 
 const w = eventWindow('2026-11-18', '2026-11-21');
 assert.equal(w.startUtc, '2026-11-18T03:00:00.000Z'); // 18/11 00:00 Brasília
@@ -56,3 +56,27 @@ assert.equal(B.pastas, 5, 'pastas: 1 por lead no período');
 assert.equal(B.agendamentos, 6, 'agendamentos: 5 no período + 1 pelo nome; sem duplicado, cancelado ou inelegível');
 assert.deepEqual(r.totals, { vendas: 5, propostas: 5, pastas: 5, agendamentos: 6 });
 console.log('PASS: período 18/11 00:00 → 22/11 00:00 (Brasília), duplicidades, cancelados e elegibilidade');
+
+// Agendamentos: semana do feirão, segunda 16/11 00:00 → sábado 21/11 (exclusivo 22/11 00:00)
+const wa = eventWindow('', '', DEFAULT_AG_START, DEFAULT_AG_END);
+assert.equal(wa.startUtc, '2026-11-16T03:00:00.000Z');
+assert.equal(wa.endUtc, '2026-11-22T03:00:00.000Z');
+const ag = [
+  ['domingo 15/11 23:59:59', br('2026-11-15T23:59:59'), false],
+  ['segunda 16/11 00:00:00 (início, inclusivo)', br('2026-11-16T00:00:00'), true],
+  ['terça 17/11 14:39', br('2026-11-17T14:39:00'), true],
+  ['quarta 18/11 13:19', br('2026-11-18T13:19:00'), true],
+  ['sábado 21/11 23:59:59', br('2026-11-21T23:59:59'), true],
+  ['domingo 22/11 00:00:00 (término, exclusivo)', br('2026-11-22T00:00:00'), false],
+  ['quarta 11/11 (semana passada)', br('2026-11-11T14:53:00'), false],
+];
+const r2 = tally({
+  window: w, agWindow: wa, profiles,
+  sold: [{ id: 'Lseg', owner_id: 'A', sold_at: br('2026-11-16T10:00:00') }], // venda de segunda: fora (período 18–21)
+  proposals: [],
+  folders: [{ id: 'Fter', lead_id: 'FX', owner_id: 'B', submitted_at: br('2026-11-17T10:00:00') }], // pasta de terça: fora
+  visits: ag.map(([, v], i) => ({ id: 'AG' + i, lead_id: 'AGL' + i, corretor_id: 'B', start_at: br('2026-11-20T10:00:00'), created_at: v, status: 'agendada' })),
+});
+for (const [nome, , esperado] of ag) console.log((esperado ? 'conta   ' : 'fora    ') + '✓ agendamento ' + nome);
+assert.deepEqual(r2.totals, { vendas: 0, propostas: 0, pastas: 0, agendamentos: ag.filter((x) => x[2]).length });
+console.log('PASS: agendamentos de segunda 16/11 a sábado 21/11; vendas, propostas e pastas seguem 18 a 21/11');
